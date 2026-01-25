@@ -135,14 +135,14 @@ Updated docker run command corresponding to the ingestion file parameters
 
 ```bash
 docker run -it \
-  --network=pg-network \
+  --network=pipeline_default \
   taxi_ingest:v001 \
     --pg-user=root \
     --pg-pass=root \
-    --pg-host=localhost \
+    --pg-host=pgdatabase \
     --pg-port=5432 \
     --pg-db=ny_taxi \
-    --target-table=yellow_taxi_trips
+    --target-table=yellow_taxi_trips_202511
 ```
 
 ### UV
@@ -165,3 +165,5 @@ remember the ```uv add --dev``` for dev dependancies and avoid installing them i
 ### ABOUT INGESTION
 
 We are using pandas for data ingestion, everything is int he `notebook.ipynb`
+
+### ABOUT TERRAFORM 
