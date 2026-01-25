@@ -6,30 +6,56 @@ import pandas as pd
 from sqlalchemy import create_engine
 from tqdm.auto import tqdm
 
+# dtype = {
+#     "VendorID": "Int64",
+#     "passenger_count": "Int64",
+#     "trip_distance": "float64",
+#     "RatecodeID": "Int64",
+#     "store_and_fwd_flag": "string",
+#     "PULocationID": "Int64",
+#     "DOLocationID": "Int64",
+#     "payment_type": "Int64",
+#     "fare_amount": "float64",
+#     "extra": "float64",
+#     "mta_tax": "float64",
+#     "tip_amount": "float64",
+#     "tolls_amount": "float64",
+#     "improvement_surcharge": "float64",
+#     "total_amount": "float64",
+#     "congestion_surcharge": "float64"
+# }
+
 dtype = {
     "VendorID": "Int64",
-    "passenger_count": "Int64",
-    "trip_distance": "float64",
+    "store_and_fwd_flag": "category",
     "RatecodeID": "Int64",
-    "store_and_fwd_flag": "string",
     "PULocationID": "Int64",
     "DOLocationID": "Int64",
-    "payment_type": "Int64",
+    "passenger_count": "Int64",
+    "trip_distance": "float64",
     "fare_amount": "float64",
     "extra": "float64",
     "mta_tax": "float64",
     "tip_amount": "float64",
     "tolls_amount": "float64",
+    "ehail_fee": "float64",
     "improvement_surcharge": "float64",
     "total_amount": "float64",
+    "payment_type": "Int64",
+    "trip_type": "Int64",
     "congestion_surcharge": "float64"
 }
 
-parse_dates = [
-    "tpep_pickup_datetime",
-    "tpep_dropoff_datetime"
-]
+# parse_dates = [
+#     "tpep_pickup_datetime",
+#     "tpep_dropoff_datetime"
+# ]
 
+
+parse_dates=[
+        "lpep_pickup_datetime",
+        "lpep_dropoff_datetime"
+    ]
 
 @click.command()
 @click.option('--pg-user', default='root', help='PostgreSQL user')
@@ -41,14 +67,15 @@ parse_dates = [
 @click.option('--month', default=1, type=int, help='Month of the data')
 @click.option('--target-table', default='yellow_taxi_data', help='Target table name')
 @click.option('--chunksize', default=100000, type=int, help='Chunk size for reading CSV')
-def run(pg_user, pg_pass, pg_host, pg_port, pg_db, year, month, target_table, chunksize):
+@click.option('--color', default='yellow', type=click.Choice(['yellow', 'green']), help='Color of the taxi data')
+def run(pg_user, pg_pass, pg_host, pg_port, pg_db, year, month, target_table, color, chunksize):
     
     """Ingest NYC taxi data into PostgreSQL database."""
     # prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow'
     # url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz'
     
     prefix = 'https://d37ci6vzurychx.cloudfront.net/trip-data'
-    url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.parquet'
+    url = f'{prefix}/{color}_tripdata_{year}-{month:02d}.parquet'
     pd.read_parquet(url).to_csv('file.csv', index=False)
 
     engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
