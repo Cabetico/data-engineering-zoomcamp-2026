@@ -121,17 +121,17 @@ docker run -it \
 ```
 
 Updated docker run command corresponding to the ingestion file parameters
-
-@click.option('--pg-user', default='root', help='PostgreSQL user')
-@click.option('--pg-pass', default='root', help='PostgreSQL password')
-@click.option('--pg-host', default='localhost', help='PostgreSQL host')
-@click.option('--pg-port', default=5432, type=int, help='PostgreSQL port')
-@click.option('--pg-db', default='ny_taxi', help='PostgreSQL database name')
-@click.option('--year', default=2021, type=int, help='Year of the data')
-@click.option('--month', default=1, type=int, help='Month of the data')
-@click.option('--target-table', default='yellow_taxi_data', help='Target table name')
-@click.option('--chunksize', default=100000, type=int, help='Chunk size for reading CSV')
-
+```
+    @click.option('--pg-user', default='root', help='PostgreSQL user')
+    @click.option('--pg-pass', default='root', help='PostgreSQL password')
+    @click.option('--pg-host', default='localhost', help='PostgreSQL host')
+    @click.option('--pg-port', default=5432, type=int, help='PostgreSQL port')
+    @click.option('--pg-db', default='ny_taxi', help='PostgreSQL database name')
+    @click.option('--year', default=2021, type=int, help='Year of the data')
+    @click.option('--month', default=1, type=int, help='Month of the data')
+    @click.option('--target-table', default='yellow_taxi_data', help='Target table name')
+    @click.option('--chunksize', default=100000, type=int, help='Chunk size for reading CSV')
+```
 
 ```bash
 docker run -it \
@@ -152,6 +152,10 @@ docker run -it \
     uv init
     uv add
     uv run   
+```
+
+```bash
+    uv init --python 3.11
 ```
 
 remember the ```uv add --dev``` for dev dependancies and avoid installing them in the prod env
