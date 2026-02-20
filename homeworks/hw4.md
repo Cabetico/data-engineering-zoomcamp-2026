@@ -35,10 +35,10 @@ If you run `dbt run --select int_trips_unioned`, what models will be built?
 - `int_trips_unioned`, `int_trips`, and `fct_trips` (downstream dependencies)
 
 
-A:  ```dbt run --select int_trips_unioned+``` will run downstream dependencies and  ```dbt run --select +int_trips_unioned``` will run upstream dependencies
+A:  
+```dbt run --select int_trips_unioned+``` will run downstream dependencies and  ```dbt run --select +int_trips_unioned``` will run upstream dependencies
 
-```--select int_trips_unioned``` runs just that model with no upstream or downstream. Your understanding of the
----
+```--select int_trips_unioned``` runs just that model with no upstream or downstream. 
 
 ### Question 2. dbt Tests
 
@@ -64,9 +64,9 @@ What happens when you run `dbt test --select fct_trips`?
 - dbt will update the configuration to include the new value
 
 
-dbt will fail the test, returning a non-zero exit code.
-The ```accepted_values``` test queries your materialized fct_trips table and checks that every value in payment_type is in ```[1, 2, 3, 4, 5]```. Since 6 is now present, the test finds failing rows and returns a failure — dbt doesn't care whether the model itself changed, it only looks at the data.
-You'd see something like:
+A: dbt will fail the test, returning a non-zero exit code.
+The `accepted_values` test queries your materialized fct_trips table and checks that every value in payment_type is in `[1, 2, 3, 4, 5]`. Since 6 is now present, the test finds failing rows and returns a failure — dbt doesn't care whether the model itself changed, it only looks at the data.
+
 ---
 
 ### Question 3. Counting Records in `fct_monthly_zone_revenue`
