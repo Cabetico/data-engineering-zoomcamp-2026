@@ -13,13 +13,9 @@ sources:
       {%- else -%}
         prod
       {%- endif -%}
-    freshness:
-      warn_after: {count: 24, period: hour}
-      error_after: {count: 48, period: hour}
     tables:
       - name: green_tripdata
         description: Raw green taxi trip records
-        loaded_at_field: lpep_pickup_datetime
         columns:
           - name: vendorid
             description: "Taxi technology provider (1 = Creative Mobile Technologies, 2 = VeriFone Inc.) - Note: Raw data may contain nulls, filtered in staging"
@@ -60,9 +56,10 @@ sources:
           - name: ehail_fee
             description: E-hail fee
 
+        config:
+          loaded_at_field: lpep_pickup_datetime
       - name: yellow_tripdata
         description: Raw yellow taxi trip records
-        loaded_at_field: tpep_pickup_datetime
         columns:
           - name: vendorid
             description: "Taxi technology provider (1 = Creative Mobile Technologies, 2 = VeriFone Inc.) - Note: Raw data may contain nulls, filtered in staging"
@@ -98,3 +95,28 @@ sources:
             description: Improvement surcharge
           - name: total_amount
             description: Total amount charged
+        config:
+          loaded_at_field: tpep_pickup_datetime
+
+      - name: fhv_tripdata
+        description: Raw fhv taxi trip records
+        columns:
+          - name: dispatching_base_num
+            description: "The TLC Base License Number of the base that dispatched the trip"
+          - name: pickup_datetime
+            description: Date and time when the meter was engaged
+          - name: dropOff_datetime
+            description: Date and time when the meter was disengaged
+          - name: PUlocationID
+            description: TLC Taxi Zone in which the trip began
+          - name: DOlocationID
+            description: TLC Taxi Zone in which the trip ended
+          - name: SR_Flag
+            description: Indicates if the trip was a part of a shared ride chain offered by a High Volume FHV company (e.g. Uber Pool, Lyft Line). For shared trips, the value is 1. For non-shared rides, this field is null.
+          - name: Affiliated_base_number
+            description: Base number of the base with which the vehicle is affiliated. This must be provided even if the affiliated base is the same as the dispatching base.
+
+    config:
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 48, period: hour}
