@@ -30,9 +30,9 @@ A: `.bruin.yml` could be at a parent folder but `pipeline.yml` and `assets/` mus
 
 You're building a pipeline that processes NYC taxi data organized by month based on `pickup_datetime`. Which incremental strategy is best for processing a specific interval period by deleting and inserting data for that time period?
 
-- `append` - always add new rows ✅
+- `append` - always add new rows 
 - `replace` - truncate and rebuild entirely
-- `time_interval` - incremental based on a time column
+- `time_interval` - incremental based on a time column ✅
 - `view` - create a virtual table only
 
 A: `append`
