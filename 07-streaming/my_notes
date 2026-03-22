@@ -1,0 +1,273 @@
+# MY NOTES
+# STREAM
+## APACHE KAFKA (JVM)
+* Streaming platform with interface and protocol of how exactly events should be put in the stream and how they should be read from the stream
+
+* Apache Kafka is a really heavy application, hard to having running locally for learning setups. 
+
+### Red panda (c++)
+A drop in Kafka replacement that also implements the Kafka protocol 
+## REDPANDA
+
+`docker-compose.yaml` in `python` folder 
+
+```bash
+    docker compose -f python/redpanda_example/docker-compose.yaml --profile redpanda up
+```
+
+```bash
+    docker compose -f pyflink/docker-compose.yml --profile flink up
+```
+
+```bash
+    docker compose up jobmanager taskmanager
+```
+
+## PRODUCER AND CONSUMER
+
+* Producer: something thats writes to the kafka's stream
+* Consumer: something thats reading from the kafka's stream
+
+## UV notes
+
+
+```bash
+    uv add --dev jupyter
+```
+
+
+```bash
+     uv run python -m ipykernel install --user --name=my-project --display-name "Python (my-project)"
+```
+
+```bash
+    workspaces/data-engineering-zoomcamp-2026/07-streaming/.venv/bin/python -m ipykernel install --user --name streaming--display-name "streaming"
+```
+
+```bash
+    uv run python -m ipykernel install --user --name streaming --display-name "streaming"
+```
+
+```bash
+    uvx pgcli -h localhost -p 5432 -U postgres -d postgres
+```
+
+```bash
+    docker compose -f pyflink/docker-compose.yml --profile flink down -v
+``` 
+
+```bash
+    cd data-engineering-zoomcamp-2026/07-streaming
+``` 
+
+```bash
+    uv run data-engineering-zoomcamp-2026/07-streaming/pyflink/src/producers/producer_hw.py
+```
+
+```bash
+    docker compose -f workshop/docker-compose.yml --profile flink up
+```
+
+
+```sql
+    CREATE TABLE processed_events (
+    PULocationID INTEGER,
+    DOLocationID INTEGER,
+    trip_distance DOUBLE PRECISION,
+    total_amount DOUBLE PRECISION,
+    pickup_datetime TIMESTAMP
+);
+```
+
+### homework
+
+```bash
+    uv run green_trips_producer_flink.py
+    uv run workshop/src/producers/green_trips_producer_flink.py
+```
+
+
+```bash
+    docker exec -it workshop-jobmanager-1 flink run -py /opt/src/job/aggregation_job_green.py
+```
+
+#### debugin 
+
+* **1. Verify the producer actually sent messages to Redpanda:**
+
+```bash
+    docker exec -it workshop-redpanda-1 rpk topic describe green-trips
+```
+
+if the `describe` output doesn't show the watermark/offsets. Run this instead to confirm messages are actually in the topic:
+
+```bash
+   docker exec -it workshop-redpanda-1 rpk topic consume green-trips --num 1 
+```
+
+This will print one message from the topic. If you see a JSON message with your ride fields, the producer worked. If it hangs or returns nothing, **the topic is empty** and the producer didn't actually send anything — which would explain the empty table.
+
+* **2. Check the Flink job is actually running:**
+
+```bash
+    docker exec -it workshop-jobmanager-1 flink list
+```
+The job is in RESTARTING state, which means it's crashing and retrying in a loop. Check the taskmanager logs for the actual error:
+
+```bash
+    docker logs workshop-taskmanager-1 --tail 50
+```
+
+The logs show the taskmanager is crashing with exit code 1 but the actual root cause is buried higher up. Scroll up to find the real error:
+
+```bash
+    docker logs workshop-taskmanager-1 2>&1 | grep -E "ERROR|Exception|Caused by" | head -30
+```
+
+Crystal clear error. It's a **PostgreSQL case sensitivity issue**.
+Flink is sending `PULocationID` (mixed case) but Postgres lowercases all unquoted identifiers to `pulocationid` when the table was created. So the column exists as `pulocationid` but Flink is looking for `PULocationID`.
+Fix your `init.sql` by quoting the column name to preserve the case:
+
+```sql
+    CREATE TABLE IF NOT EXISTS processed_events_aggregated (
+    window_start TIMESTAMP(3),
+    "PULocationID" INT,
+    num_trips BIGINT,
+    total_revenue DOUBLE PRECISION,
+    PRIMARY KEY (window_start, "PULocationID")
+);
+```
+
+
+```bash
+# Drop the existing table
+docker exec -it workshop-postgres-1 psql -U postgres -c "DROP TABLE processed_events_aggregated;"
+
+# Recreate with quoted column
+docker exec -it workshop-postgres-1 psql -U postgres -c '
+CREATE TABLE processed_events_aggregated (
+    window_start TIMESTAMP(3),
+    "PULocationID" INT,
+    num_trips BIGINT,
+    total_revenue DOUBLE PRECISION,
+    PRIMARY KEY (window_start, "PULocationID")
+);
+```
+
+Now resubmit it:
+
+```bash
+    docker exec -it workshop-jobmanager-1 flink run -py /opt/src/job/aggregation_job_green.py
+```
+
+```bash
+    docker exec -it workshop-postgres-1 psql -U postgres -c "SELECT COUNT(*) FROM processed_events_aggregated;"
+```
+
+The error is still the same — Flink is sending `PULocationID` unquoted in the INSERT statement, and Postgres is lowercasing it to `pulocationid` at query time, so it can't find the quoted `"PULocationID"` column.
+
+The real fix needs to happen on the **Flink side**. You need to lowercase the column name in the Flink DDL to match what Postgres actually stores unquoted. The simplest solution is to just use lowercase everywhere and avoid the case sensitivity problem entirely
+
+** Drop and recreate the Postgres table with all lowercase: **
+
+```bash
+    docker exec -it workshop-postgres-1 psql -U postgres -c "DROP TABLE processed_events_aggregated;"
+
+    docker exec -it workshop-postgres-1 psql -U postgres -c "
+    CREATE TABLE processed_events_aggregated (
+        window_start TIMESTAMP(3),
+        pulocationid INT,
+        num_trips BIGINT,
+        total_revenue DOUBLE PRECISION,
+        PRIMARY KEY (window_start, pulocationid)
+    );"
+```
+
+** Update the Flink job to use lowercase: ** 
+
+
+** Checking the topic in redpandas ** 
+```bash
+    docker exec -it workshop-redpanda-1 rpk topic consume green-trips --num 1
+```
+
+```bash
+    Kafka JSON fields (PULocationID)
+        ↓
+    Flink source DDL (PULocationID)
+            ↓
+    Flink sink DDL (pulocationid)  ← this is what Flink sends to Postgres
+            ↓
+    Postgres table (pulocationid)  ← must match exactly what Flink sends
+```
+
+#### homerwork exercise 4
+
+```bash
+    docker exec -it workshop-postgres-1 psql -U postgres -c "
+    CREATE TABLE trips_per_location_5min (
+    window_start TIMESTAMP(3),
+    pulocationid INT,
+    num_trips BIGINT,
+    PRIMARY KEY (window_start, pulocationid)
+);"
+
+
+    docker exec -it workshop-jobmanager-1 flink run -py /opt/src/job/question4_job.py
+
+
+    docker exec -it workshop-postgres-1 psql -U postgres -c "
+    SELECT pulocationid, num_trips
+    FROM trips_per_location_5min
+    ORDER BY num_trips DESC
+    LIMIT 3;"
+```
+
+#### homerwork exercise 5
+
+```bash
+    docker exec -it workshop-postgres-1 psql -U postgres -c "
+CREATE TABLE trips_session_window (
+    window_start TIMESTAMP(3),
+    window_end TIMESTAMP(3),
+    pulocationid INT,
+    num_trips BIGINT,
+    PRIMARY KEY (window_start, window_end, pulocationid)
+);"
+```
+
+```bash
+    docker exec -it workshop-jobmanager-1 flink run -py /opt/src/job/question5_job.py
+```
+
+```bash
+    docker exec -it workshop-postgres-1 psql -U postgres -c "
+    SELECT pulocationid, num_trips, window_start, window_end
+    FROM trips_session_window
+    ORDER BY num_trips DESC
+    LIMIT 3;"
+    );"
+```
+
+Different error this time — nothing to do with the SQL syntax. The session window is keeping too much state in memory for checkpointing. The fix is to switch to `FileSystemCheckpointStorage` instead of the default memory-backed storage.
+Update question5_job.py in the question5() function:
+
+
+```bash
+    java.util.concurrent.ExecutionException: java.io.IOException: Size of the state is larger than the maximum permitted memory-backed state. Size=11478403, maxSize=5242880. Consider using a different checkpoint storage, like the FileSystemCheckpointStorage.
+Caused by: java.io.IOException: Size of the state is larger than the maximum permitted memory-backed state. Size=11478403, maxSize=5242880. Consider using a different checkpoint storage, like the FileSystemCheckpointStorage.
+
+```
+
+#### homework 6
+
+We add a new field to the stream so it's necessary to
+
+```bash
+    docker exec -it workshop-redpanda-1 rpk topic delete green-trips
+    docker exec -it workshop-redpanda-1 rpk topic create green-trip
+```
+
+```bash
+    uv run src/producers/green_trips_producer_flink_tip.py
+```

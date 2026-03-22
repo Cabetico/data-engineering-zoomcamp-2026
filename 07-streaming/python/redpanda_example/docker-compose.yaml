@@ -1,4 +1,4 @@
-version: '3.7'
+
 services:
   # Redpanda cluster
   redpanda-1:
@@ -88,3 +88,13 @@ services:
       - 8080:8080
     depends_on:
       - redpanda-1
+
+  postgres:
+    image: postgres:18
+    restart: on-failure
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - 5432:5432
